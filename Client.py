@@ -19,7 +19,7 @@ class Client:
             print(f"connect() >error> {e}")
 
     def try_reconnect(self):
-        if self.reconnect:
+        if self.reconnect is True:
             print("try_reconnect()")
             self.connect()
 
@@ -44,7 +44,7 @@ class Client:
 
     def receive(self):
         print("receive()")
-        while self.connected:
+        while self.connected is True:
             try:
                 msg = self.socket.recv(1024).decode("UTF-8")
                 print(f"receive() >msg> {msg}")
@@ -54,7 +54,7 @@ class Client:
                 print("receive() >err> ", e)
 
     def send(self, message):
-        if self.connected:
+        if self.connected is True:
             print("send()")
             try:
                 self.socket.send(bytes(message, "UTF-8"))
