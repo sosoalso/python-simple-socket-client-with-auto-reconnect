@@ -1,61 +1,72 @@
 import socket
-import time
 import threading
+import time
 
 
 class Client:
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, reconnect=True):
         self.socket = None
         self.ip = ip
         self.port = port
         self.connected = False
-        self.thread_receive = threading.Thread(target=self.receive)
+        self.reconnect = reconnect
+
+    def connect(self):
+        print("connect()")
+        try:
+            threading.Thread(target=self._connect, name="c1").start()
+        except Exception as e:
+            print(f"connect() >error> {e}")
+
+    def try_reconnect(self):
+        if self.reconnect:
+            print("try_reconnect()")
+            self.connect()
+
+    def _connect(self):
+        print("_connect()")
+        while self.connected is False:
+            time.sleep(3)
+            try:
+                self.socket = socket.socket()
+                self.socket.connect((self.ip, self.port))
+                self.connected = True
+                self.run_thread_receive()
+            except (socket.error, Exception) as e:
+                self.connected = False
+                print("_connect() >err> ", e)
+
+    def run_thread_receive(self):
+        try:
+            threading.Thread(target=self.receive, name="r1").start()
+        except Exception as e:
+            print(f"run_thread_receive() >error> {e}")
 
     def receive(self):
+        print("receive()")
         while self.connected:
             try:
-                message = self.socket.recv(1024).decode("UTF-8")
-                self.socket.send(
-                    bytes("received message from server : " + message, "UTF-8"))
-                print(message)
+                msg = self.socket.recv(1024).decode("UTF-8")
+                print(f"receive() >msg> {msg}")
             except (socket.error, Exception) as e:
+                self.connected = False
+                self.try_reconnect()
                 print("receive() >err> ", e)
-                self.connect()
 
     def send(self, message):
         if self.connected:
+            print("send()")
             try:
                 self.socket.send(bytes(message, "UTF-8"))
-            except socket.error as e:
+            except (socket.error, Exception) as e:
                 print("send() >err> ", e)
+                self.connected = False
 
-    def connect(self):
+    def disconnect(self):
+        print("disconnect()")
         try:
-            self.socket = socket.socket()
-            self.socket.connect((self.ip, self.port))
-            self.connected = True
-            print("connect() >msg> Connected")
-            if not self.thread_receive.is_alive():
-                self.thread_receive.start()
-        except socket.error as e:
-            print("connect() >err> ", e)
+            self.socket.close()
             self.connected = False
-            print("Connection lost... reconnecting")
-            while not self.connected:
-                try:
-                    self.connect()
-                except socket.error as e:
-                    print(e)
-                    time.sleep(3)
-
-
-def run():
-    while True:
-        my_client.send("hah")
-        time.sleep(2)
-
-
-my_client = Client("localhost", 12345)
-my_client.connect()
-main = threading.Thread(target=run, daemon=True)
-main.start()
+            self.try_reconnect()
+        except (socket.error, Exception) as e:
+            print("disconnect() >err> ", e)
